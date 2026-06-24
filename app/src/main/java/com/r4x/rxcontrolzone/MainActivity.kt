@@ -159,7 +159,7 @@ class MainActivity : AppCompatActivity() {
                 String::class.java
             )
             method.isAccessible = true
-            val process = method.invoke(null, arrayOf("sh", "-c", cmd), null, null) as Process
+            val process = method.invoke(null, arrayOf("sh", "-c", cmd), null, null) as java.lang.Process
             val output = process.inputStream.bufferedReader().readText()
             process.waitFor()
             output.trim()
