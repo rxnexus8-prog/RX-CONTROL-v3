@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>RX CONTROL ZONE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #07070F;
+  --surface:  #0D0D1C;
+  --panel:    #11112A;
+  --border:   #1E1E4A;
+  --cyan:     #00F0FF;
+  --cyan-dim: #00F0FF33;
+  --magenta:  #FF00CC;
+  --mag-dim:  #FF00CC2A;
+  --green:    #00FF88;
+  --amber:    #FFB800;
+  --red:      #FF3355;
+  --text:     #C8D8FF;
+  --dim:      #5566AA;
+  --hud:      'Orbitron', monospace;
+  --mono:     'Share Tech Mono', monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
+  font-family:var(--mono);overflow:hidden;
+  -webkit-tap-highlight-color:transparent;user-select:none}
+
+/* grid bg */
+body::before{content:'';position:fixed;inset:0;z-index:0;
+  background-image:linear-gradient(var(--border) 1px,transparent 1px),
+    linear-gradient(90deg,var(--border) 1px,transparent 1px);
+  background-size:40px 40px;opacity:.25;pointer-events:none}
+
+/* scrollbar */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── SHELL ── */
+#app{position:relative;z-index:1;display:flex;flex-direction:column;
+  height:100dvh;padding-bottom:env(safe-area-inset-bottom)}
+
+/* ── HEADER ── */
+header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px 10px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,#08081800 0%,transparent 100%)}
+.brand-title{font-family:var(--hud);font-size:14px;font-weight:900;
+  letter-spacing:3px;background:linear-gradient(90deg,var(--cyan),var(--magenta));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.brand-sub{font-size:9px;letter-spacing:4px;color:var(--dim);margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.ai-pill{display:flex;align-items:center;gap:5px;padding:4px 10px;
+  border:1px solid var(--cyan-dim);border-radius:20px;font-size:9px;
+  letter-spacing:1px;color:var(--cyan);cursor:pointer}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);
+  animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+.icon-btn{width:32px;height:32px;background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:14px;transition:border-color .2s}
+.icon-btn:active{border-color:var(--cyan)}
+
+/* ── STATUS GRID ── */
+.status-grid{flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;
+  gap:8px;padding:10px 16px;border-bottom:1px solid var(--border)}
+.sc{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+  padding:9px 11px;display:flex;align-items:center;gap:9px;
+  transition:border-color .3s,background .3s;cursor:pointer;position:relative;overflow:hidden}
+.sc::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent 60%,rgba(255,255,255,.03));
+  pointer-events:none}
+.sc.on {border-color:var(--green);background:#00FF8810}
+.sc.off{border-color:var(--red);  background:#FF335510}
+.sc.warn{border-color:var(--amber);background:#FFB80010}
+.sc-icon{font-size:16px;width:30px;height:30px;display:flex;align-items:center;
+  justify-content:center;border-radius:6px;background:var(--surface);flex-shrink:0}
+.sc-name{font-family:var(--hud);font-size:7.5px;font-weight:700;letter-spacing:2px;
+  color:var(--dim);text-transform:uppercase}
+.sc-val{font-size:10.5px;font-weight:700;margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc.on  .sc-val{color:var(--green)}
+.sc.off .sc-val{color:var(--red)}
+.sc.warn .sc-val{color:var(--amber)}
+
+/* ── STEPS BAR ── */
+#steps-bar{flex-shrink:0;padding:0 16px;display:none}
+#steps-bar.show{display:block;padding:6px 16px}
+.steps-inner{background:var(--panel);border:1px solid var(--mag-dim);
+  border-radius:8px;padding:8px 12px;display:flex;flex-direction:column;gap:5px}
+.steps-header{display:flex;align-items:center;gap:8px}
+.steps-spinner{width:12px;height:12px;border-radius:50%;
+  border:2px solid var(--mag-dim);border-top-color:var(--magenta);
+  animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+#step-task{font-size:11px;color:var(--magenta);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.steps-list{display:flex;flex-direction:column;gap:3px;max-height:80px;overflow-y:auto}
+.step-item{display:flex;align-items:center;gap:6px;font-size:10px}
+.step-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.step-dot.done{background:var(--green)}
+.step-dot.active{background:var(--magenta);animation:blink .8s infinite}
+.step-dot.pending{background:var(--border)}
+.step-lbl{color:var(--dim)}
+.step-lbl.done{color:var(--green)}
+.step-lbl.active{color:var(--text)}
+
+/* ── LOG ── */
+.log-wrap{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 16px 6px}
+.log-hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 0 5px;flex-shrink:0}
+.log-lbl{font-family:var(--hud);font-size:8px;letter-spacing:3px;color:var(--dim);
+  display:flex;align-items:center;gap:6px}
+.log-lbl::before{content:'';display:block;width:16px;height:1px;background:var(--cyan)}
+.clr-btn{font-family:var(--mono);font-size:9px;color:var(--dim);
+  background:none;border:1px solid var(--border);border-radius:4px;
+  padding:2px 8px;cursor:pointer}
+.clr-btn:active{background:var(--surface)}
+#log{flex:1;min-height:0;overflow-y:auto;background:var(--surface);
+  border:1px solid var(--border);border-radius:8px;padding:8px 11px;
+  display:flex;flex-direction:column;gap:3px}
+.le{display:flex;gap:7px;align-items:baseline;
+  animation:fadeUp .18s ease;font-size:10.5px;line-height:1.6}
+@keyframes fadeUp{from{opacity:0;transform:translateY(3px)}}
+.lt{color:var(--dim);font-size:8.5px;flex-shrink:0;min-width:58px}
+.li{flex-shrink:0}
+.lm{flex:1;word-break:break-word}
+.le.info  .lm{color:var(--text)}
+.le.action .lm{color:var(--cyan)}
+.le.ok    .lm{color:var(--green)}
+.le.warn  .lm{color:var(--amber)}
+.le.error .lm{color:var(--red)}
+.le.cmd   .lm{color:var(--magenta);font-weight:bold}
+
+/* ── QUICK BAR ── */
+.quick{flex-shrink:0;display:flex;gap:6px;padding:6px 16px;overflow-x:auto}
+.quick::-webkit-scrollbar{display:none}
+.qb{flex-shrink:0;background:var(--panel);border:1px solid var(--border);
+  border-radius:20px;padding:5px 11px;font-family:var(--mono);font-size:10px;
+  color:var(--dim);cursor:pointer;white-space:nowrap;transition:all .15s}
+.qb:active{border-color:var(--cyan);color:var(--cyan);background:var(--cyan-dim)}
+
+/* ── CMD BAR ── */
+.cmd-bar{flex-shrink:0;padding:8px 16px 12px;border-top:1px solid var(--border);
+  background:linear-gradient(0deg,#0A0A1A 0%,transparent 100%);
+  display:flex;gap:8px;align-items:center}
+.prompt{font-family:var(--hud);font-size:13px;font-weight:700;
+  color:var(--cyan);flex-shrink:0}
+#cmd{flex:1;background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;padding:10px 12px;font-family:var(--mono);
+  font-size:13px;color:var(--text);outline:none;caret-color:var(--cyan);
+  transition:border-color .2s}
+#cmd:focus{border-color:var(--cyan)}
+#cmd::placeholder{color:var(--dim)}
+#send{width:42px;height:42px;flex-shrink:0;border:none;border-radius:10px;
+  background:linear-gradient(135deg,var(--cyan),var(--magenta));
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:opacity .15s,transform .1s}
+#send:active{opacity:.7;transform:scale(.93)}
+#send svg{width:18px;height:18px;fill:#07070F}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);
+  background:var(--panel);border:1px solid var(--border);border-radius:20px;
+  padding:7px 16px;font-size:11px;color:var(--text);
+  opacity:0;transition:opacity .25s;pointer-events:none;z-index:90;white-space:nowrap}
+#toast.show{opacity:1}
+
+/* ── CONFIRM DIALOG ── */
+#confirm-overlay{position:fixed;inset:0;z-index:70;
+  background:#07070FCC;backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;padding:24px}
+#confirm-overlay.hidden{display:none}
+.confirm-box{background:var(--panel);border:1px solid var(--red);
+  border-radius:14px;padding:20px;width:100%;max-width:340px;
+  display:flex;flex-direction:column;gap:14px;
+  animation:popIn .2s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes popIn{from{opacity:0;transform:scale(.9)}}
+.confirm-title{font-family:var(--hud);font-size:13px;font-weight:900;
+  color:var(--red);letter-spacing:2px;text-align:center}
+.confirm-icon{font-size:32px;text-align:center}
+.confirm-msg{font-size:12px;color:var(--text);text-align:center;line-height:1.6}
+.confirm-detail{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:10px 12px;font-size:11px;color:var(--dim)}
+.confirm-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn-cancel{padding:12px;background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;font-family:var(--hud);font-size:11px;font-weight:700;
+  letter-spacing:1px;color:var(--dim);cursor:pointer;transition:border-color .15s}
+.btn-cancel:active{border-color:var(--text)}
+.btn-confirm{padding:12px;background:linear-gradient(135deg,var(--red),#FF6600);
+  border:none;border-radius:8px;font-family:var(--hud);font-size:11px;
+  font-weight:700;letter-spacing:1px;color:#fff;cursor:pointer;
+  transition:opacity .15s}
+.btn-confirm:active{opacity:.8}
+
+/* ── SETTINGS PANEL ── */
+#settings-overlay{position:fixed;inset:0;z-index:60;
+  background:#07070FEE;backdrop-filter:blur(6px);
+  display:flex;flex-direction:column;padding:0}
+#settings-overlay.hidden{display:none}
+.settings-header{display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border)}
+.settings-title{font-family:var(--hud);font-size:13px;font-weight:900;
+  letter-spacing:3px;color:var(--cyan)}
+.close-btn{font-size:20px;color:var(--dim);background:none;border:none;cursor:pointer}
+.settings-body{flex:1;overflow-y:auto;padding:16px 20px;
+  display:flex;flex-direction:column;gap:14px}
+.sett-section{background:var(--panel);border:1px solid var(--border);
+  border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.sett-label{font-family:var(--hud);font-size:8px;letter-spacing:3px;
+  color:var(--dim);text-transform:uppercase;margin-bottom:2px}
+.sett-input{background:var(--surface);border:1px solid var(--border);
+  border-radius:7px;padding:9px 12px;font-family:var(--mono);
+  font-size:12px;color:var(--text);outline:none;width:100%;
+  caret-color:var(--cyan);transition:border-color .2s}
+.sett-input:focus{border-color:var(--cyan)}
+.sett-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sett-row-lbl{font-size:11px;color:var(--text)}
+.toggle{width:40px;height:22px;border-radius:11px;background:var(--surface);
+  border:1px solid var(--border);position:relative;cursor:pointer;
+  transition:background .2s,border-color .2s;flex-shrink:0}
+.toggle.on{background:var(--green);border-color:var(--green)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;
+  width:16px;height:16px;border-radius:50%;background:#fff;
+  transition:transform .2s}
+.toggle.on::after{transform:translateX(18px)}
+.model-select{background:var(--surface);border:1px solid var(--border);
+  border-radius:7px;padding:8px 12px;font-family:var(--mono);
+  font-size:11px;color:var(--text);outline:none;width:100%;
+  caret-color:var(--cyan)}
+.sett-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--cyan),var(--magenta));
+  border:none;border-radius:8px;font-family:var(--hud);font-size:11px;
+  font-weight:700;letter-spacing:2px;color:#07070F;cursor:pointer}
+.sett-btn.danger{background:linear-gradient(135deg,var(--red),#FF6600)}
+.sett-hint{font-size:10px;color:var(--dim);line-height:1.6}
+.adb-status-row{display:flex;align-items:center;gap:8px;
+  background:var(--surface);border-radius:7px;padding:8px 11px}
+.adb-led{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0}
+.adb-led.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.adb-txt{font-size:11px;color:var(--text)}
+
+/* ── SETUP OVERLAY ── */
+#setup-overlay{position:fixed;inset:0;z-index:80;background:#07070FF5;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;padding:28px}
+#setup-overlay.hidden{display:none}
+.setup-logo{font-family:var(--hud);font-size:18px;font-weight:900;
+  letter-spacing:3px;text-align:center;
+  background:linear-gradient(90deg,var(--cyan),var(--magenta));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.setup-sub{font-size:11px;color:var(--dim);text-align:center;line-height:1.7}
+.setup-steps{width:100%;background:var(--panel);border:1px solid var(--border);
+  border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.setup-step{display:flex;gap:10px;align-items:flex-start;font-size:11px;color:var(--text);line-height:1.5}
+.snum{width:20px;height:20px;border-radius:50%;background:var(--cyan-dim);
+  border:1px solid var(--cyan);color:var(--cyan);font-family:var(--hud);
+  font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.setup-primary{width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--cyan),var(--magenta));
+  border:none;border-radius:10px;font-family:var(--hud);font-size:12px;
+  font-weight:700;letter-spacing:2px;color:#07070F;cursor:pointer}
+.setup-skip{font-size:10px;color:var(--dim);background:none;border:none;cursor:pointer;letter-spacing:1px}
+
+/* ── HISTORY PANEL ── */
+#history-overlay{position:fixed;inset:0;z-index:60;
+  background:#07070FEE;backdrop-filter:blur(6px);
+  display:flex;flex-direction:column}
+#history-overlay.hidden{display:none}
+.history-list{flex:1;overflow-y:auto;padding:12px 20px;
+  display:flex;flex-direction:column;gap:6px}
+.hist-item{background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;padding:10px 14px;cursor:pointer;transition:border-color .15s}
+.hist-item:active{border-color:var(--cyan)}
+.hist-cmd{font-size:12px;color:var(--text)}
+.hist-meta{font-size:9px;color:var(--dim);margin-top:2px}
+.no-hist{font-size:12px;color:var(--dim);text-align:center;padding-top:40px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div>
+      <div class="brand-title">RX CONTROL ZONE ⚡</div>
+      <div class="brand-sub">AI Phone Control System</div>
+    </div>
+    <div class="hdr-right">
+      <div class="ai-pill" onclick="openSettings()">
+        <span class="ai-dot" id="ai-dot"></span>
+        <span id="ai-label">GEMINI 2.5</span>
+      </div>
+      <div class="icon-btn" onclick="openHistory()" title="History">🕑</div>
+      <div class="icon-btn" onclick="openSettings()" title="Settings">⚙</div>
+    </div>
+  </header>
+
+  <!-- STATUS GRID -->
+  <div class="status-grid">
+    <div class="sc off" id="sc-access" onclick="openAccessibility()">
+      <div class="sc-icon">♿</div>
+      <div>
+        <div class="sc-name">Accessibility</div>
+        <div class="sc-val" id="v-access">Disabled</div>
+      </div>
+    </div>
+    <div class="sc off" id="sc-shizuku" onclick="bindShizuku()">
+      <div class="sc-icon">⚡</div>
+      <div>
+        <div class="sc-name">Shizuku</div>
+        <div class="sc-val" id="v-shizuku">Not Bound</div>
+      </div>
+    </div>
+    <div class="sc off" id="sc-adb" onclick="connectAdb()">
+      <div class="sc-icon">🔗</div>
+      <div>
+        <div class="sc-name">ADB Bridge</div>
+        <div class="sc-val" id="v-adb">Disconnected</div>
+      </div>
+    </div>
+    <div class="sc off" id="sc-python">
+      <div class="sc-icon">🐍</div>
+      <div>
+        <div class="sc-name">Python AI</div>
+        <div class="sc-val" id="v-python">Waiting</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEPS BAR (visible during task) -->
+  <div id="steps-bar">
+    <div class="steps-inner">
+      <div class="steps-header">
+        <div class="steps-spinner"></div>
+        <div id="step-task">Running...</div>
+      </div>
+      <div class="steps-list" id="steps-list"></div>
+    </div>
+  </div>
+
+  <!-- LOG FEED -->
+  <div class="log-wrap">
+    <div class="log-hdr">
+      <div class="log-lbl">Live Log</div>
+      <button class="clr-btn" onclick="clearLog()">CLEAR</button>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <!-- QUICK ACTIONS -->
+  <div class="quick">
+    <button class="qb" onclick="quickCmd('screenshot lo')">📸 Screenshot</button>
+    <button class="qb" onclick="quickCmd('home screen pe jao')">🏠 Home</button>
+    <button class="qb" onclick="quickCmd('back jao')">◀ Back</button>
+    <button class="qb" onclick="quickCmd('notifications dekho')">🔔 Notif</button>
+    <button class="qb" onclick="quickCmd('chrome kholo')">🌐 Chrome</button>
+    <button class="qb" onclick="quickCmd('youtube kholo')">▶ YouTube</button>
+    <button class="qb" onclick="quickCmd('whatsapp kholo')">💬 WhatsApp</button>
+    <button class="qb" onclick="quickCmd('settings kholo')">⚙ Settings</button>
+    <button class="qb" onclick="quickCmd('volume up karo')">🔊 Vol+</button>
+    <button class="qb" onclick="quickCmd('volume down karo')">🔉 Vol-</button>
+    <button class="qb" onclick="quickCmd('battery kitni hai')">🔋 Battery</button>
+    <button class="qb" onclick="quickCmd('wifi on karo')">📶 WiFi</button>
+    <button class="qb" onclick="sendCmd('new chat')">🔄 New Chat</button>
+  </div>
+
+  <!-- COMMAND BAR -->
+  <div class="cmd-bar">
+    <span class="prompt">RX&gt;</span>
+    <input id="cmd" type="text" placeholder="Command type karo..."
+           autocomplete="off" autocorrect="off" spellcheck="false"
+           onkeydown="if(event.key==='Enter')sendFromInput()"/>
+    <button id="send" onclick="sendFromInput()">
+      <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </div>
+
+</div><!-- /app -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- CONFIRM DIALOG -->
+<div id="confirm-overlay" class="hidden">
+  <div class="confirm-box">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title">CONFIRM REQUIRED</div>
+    <div class="confirm-msg">Ye ek sensitive action hai. Sure ho?</div>
+    <div class="confirm-detail" id="confirm-detail">Action detail here</div>
+    <div class="confirm-btns">
+      <button class="btn-cancel" onclick="resolveConfirm(false)">CANCEL</button>
+      <button class="btn-confirm" onclick="resolveConfirm(true)">CONFIRM ✔</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div id="settings-overlay" class="hidden">
+  <div class="settings-header">
+    <div class="settings-title">⚙ SETTINGS</div>
+    <button class="close-btn" onclick="closeSettings()">✕</button>
+  </div>
+  <div class="settings-body">
+
+    <div class="sett-section">
+      <div class="sett-label">Google API Key</div>
+      <input class="sett-input" id="s-apikey" type="password"
+             placeholder="AIza..." autocomplete="off"/>
+      <div class="sett-hint">aistudio.google.com/apikey se le — free hai</div>
+    </div>
+
+    <div class="sett-section">
+      <div class="sett-label">AI Model</div>
+      <select class="model-select" id="s-model">
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommended)</option>
+        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Fast)</option>
+        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+      </select>
+    </div>
+
+    <div class="sett-section">
+      <div class="sett-label">ADB / Python Bridge</div>
+      <div class="adb-status-row">
+        <div class="adb-led" id="adb-led"></div>
+        <div class="adb-txt" id="adb-txt">Not Connected</div>
+      </div>
+      <input class="sett-input" id="s-adbip" type="text"
+             placeholder="192.168.1.x:7070 (Python socket port)"/>
+      <button class="sett-btn" onclick="saveAdbIp()">CONNECT BRIDGE</button>
+      <div class="sett-hint">Python script mein LocalSocket server port daalo — default 7070</div>
+    </div>
+
+    <div class="sett-section">
+      <div class="sett-label">Behaviour</div>
+      <div class="sett-row">
+        <div class="sett-row-lbl">Confirmation for sensitive actions</div>
+        <div class="toggle on" id="tog-confirm" onclick="toggleSetting('confirm')"></div>
+      </div>
+      <div class="sett-row">
+        <div class="sett-row-lbl">Show step-by-step log</div>
+        <div class="toggle on" id="tog-steps" onclick="toggleSetting('steps')"></div>
+      </div>
+      <div class="sett-row">
+        <div class="sett-row-lbl">Vibrate on task complete</div>
+        <div class="toggle on" id="tog-vibrate" onclick="toggleSetting('vibrate')"></div>
+      </div>
+    </div>
+
+    <div class="sett-section">
+      <div class="sett-label">Permissions</div>
+      <button class="sett-btn" onclick="openAccessibility();closeSettings()">
+        ♿ Open Accessibility Settings
+      </button>
+      <button class="sett-btn" onclick="bindShizuku();closeSettings()">
+        ⚡ Bind Shizuku Service
+      </button>
+    </div>
+
+    <div class="sett-section">
+      <div class="sett-label">Danger Zone</div>
+      <button class="sett-btn danger" onclick="clearAllData()">🗑 Clear All Data & Cache</button>
+    </div>
+
+    <button class="sett-btn" style="margin-top:4px" onclick="saveSettings()">
+      💾 SAVE SETTINGS
+    </button>
+
+  </div>
+</div>
+
+<!-- HISTORY PANEL -->
+<div id="history-overlay" class="hidden">
+  <div class="settings-header">
+    <div class="settings-title">🕑 HISTORY</div>
+    <button class="close-btn" onclick="closeHistory()">✕</button>
+  </div>
+  <div class="history-list" id="history-list"></div>
+</div>
+
+<!-- SETUP OVERLAY -->
+<div id="setup-overlay">
+  <div class="setup-logo">⚡ RX CONTROL ZONE</div>
+  <div class="setup-sub">AI Phone Control System<br/>Pehli baar setup karo</div>
+  <div class="setup-steps">
+    <div class="setup-step">
+      <div class="snum">1</div>
+      <div>Accessibility Service ON karo — AI ko screen control karne ke liye zaruri hai</div>
+    </div>
+    <div class="setup-step">
+      <div class="snum">2</div>
+      <div>Shizuku install karo (Play Store) — ADB-level permission bina root ke</div>
+    </div>
+    <div class="setup-step">
+      <div class="snum">3</div>
+      <div>Settings mein Google Gemini API key daalo — aistudio.google.com se free milti hai</div>
+    </div>
+    <div class="setup-step">
+      <div class="snum">4</div>
+      <div>Termux mein <code style="color:var(--cyan);font-size:10px">python rx_control_zone.py</code> chala do</div>
+    </div>
+  </div>
+  <button class="setup-primary" onclick="startSetup()">START SETUP ▶</button>
+  <button class="setup-skip" onclick="skipSetup()">SKIP — Already configured</button>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+const S = {
+  accessibility: false, shizuku: false, adb: false, python: false,
+  busy: false,
+  settings: {
+    apiKey: '', model: 'gemini-2.5-flash', adbIp: '',
+    confirm: true, steps: true, vibrate: true,
+  },
+  history: [],   // [{cmd, ts, ok}]
+  stepsList: [], // current task steps
+  confirmResolve: null,
+};
+const HISTORY_MAX = 50;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORAGE
+// ─────────────────────────────────────────────────────────────────────────────
+function storeSave(key, val) {
+  try {
+    if (hasBridge()) Android.storeSave(key, JSON.stringify(val));
+  } catch(e) {}
+}
+function storeLoad(key, def) {
+  try {
+    if (hasBridge()) {
+      const v = Android.storeLoad(key);
+      if (v) return JSON.parse(v);
+    }
+  } catch(e) {}
+  return def;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BRIDGE
+// ─────────────────────────────────────────────────────────────────────────────
+const hasBridge = () => typeof Android !== 'undefined';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOG
+// ─────────────────────────────────────────────────────────────────────────────
+const ICONS = {info:'·',action:'→',ok:'✔',warn:'⚠',error:'✖',cmd:'⚡'};
+function log(msg, type='info') {
+  const feed = document.getElementById('log');
+  const now = new Date();
+  const ts = [now.getHours(),now.getMinutes(),now.getSeconds()]
+             .map(n=>String(n).padStart(2,'0')).join(':');
+  const el = document.createElement('div');
+  el.className = `le ${type}`;
+  el.innerHTML = `<span class="lt">${ts}</span>
+                  <span class="li">${ICONS[type]||'·'}</span>
+                  <span class="lm">${esc(msg)}</span>`;
+  feed.appendChild(el);
+  while(feed.children.length > 300) feed.removeChild(feed.firstChild);
+  feed.scrollTop = feed.scrollHeight;
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function clearLog(){ document.getElementById('log').innerHTML=''; log('Log cleared'); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATUS CARDS
+// ─────────────────────────────────────────────────────────────────────────────
+function setCard(id, vid, on, label) {
+  const c = document.getElementById(id);
+  const v = document.getElementById(vid);
+  c.className = 'sc ' + (on ? 'on' : 'off');
+  v.textContent = label;
+}
+function updateStatus(d) {
+  if (d.accessibility !== undefined) {
+    S.accessibility = d.accessibility;
+    setCard('sc-access','v-access', d.accessibility, d.accessibility ? 'Active':'Disabled');
+  }
+  if (d.shizuku !== undefined) {
+    S.shizuku = d.shizuku;
+    setCard('sc-shizuku','v-shizuku', d.shizuku, d.shizuku ? 'Connected':'Not Bound');
+  }
+  if (d.adb !== undefined) {
+    S.adb = d.adb;
+    setCard('sc-adb','v-adb', d.adb, d.adb ? 'Connected':'Disconnected');
+    const led = document.getElementById('adb-led');
+    const txt = document.getElementById('adb-txt');
+    if(led){ led.className='adb-led'+(d.adb?' on':''); }
+    if(txt){ txt.textContent = d.adb ? 'Connected' : 'Not Connected'; }
+  }
+  if (d.python !== undefined) {
+    S.python = d.python;
+    setCard('sc-python','v-python', d.python, d.python ? 'Connected':'Waiting');
+    const dot = document.getElementById('ai-dot');
+    dot.style.background = d.python ? 'var(--green)' : 'var(--cyan)';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STEPS BAR
+// ─────────────────────────────────────────────────────────────────────────────
+function setTask(taskText) {
+  const bar = document.getElementById('steps-bar');
+  const taskEl = document.getElementById('step-task');
+  if (taskText) {
+    S.busy = true; S.stepsList = [];
+    bar.classList.add('show');
+    taskEl.textContent = taskText;
+    document.getElementById('steps-list').innerHTML = '';
+  } else {
+    S.busy = false;
+    bar.classList.remove('show');
+    if (S.settings.vibrate && hasBridge()) Android.vibrate(60);
+  }
+}
+
+function addStep(label, status='active') {
+  if (!S.settings.steps) return;
+  S.stepsList.push({ label, status });
+  renderSteps();
+}
+
+function updateLastStep(status) {
+  if (!S.stepsList.length) return;
+  S.stepsList[S.stepsList.length-1].status = status;
+  renderSteps();
+}
+
+function renderSteps() {
+  const list = document.getElementById('steps-list');
+  list.innerHTML = S.stepsList.map(s =>
+    `<div class="step-item">
+       <div class="step-dot ${s.status}"></div>
+       <div class="step-lbl ${s.status}">${esc(s.label)}</div>
+     </div>`
+  ).join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIRM DIALOG
+// ─────────────────────────────────────────────────────────────────────────────
+function showConfirm(detail) {
+  return new Promise(resolve => {
+    S.confirmResolve = resolve;
+    document.getElementById('confirm-detail').textContent = detail;
+    document.getElementById('confirm-overlay').classList.remove('hidden');
+  });
+}
+function resolveConfirm(ok) {
+  document.getElementById('confirm-overlay').classList.add('hidden');
+  if (S.confirmResolve) { S.confirmResolve(ok); S.confirmResolve = null; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMMAND SEND
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendCmd(cmd) {
+  if (!cmd.trim()) return;
+  log(cmd, 'cmd');
+  addToHistory(cmd);
+
+  if (cmd.toLowerCase() === 'new chat') {
+    if (hasBridge()) Android.newChat();
+    log('Memory cleared — fresh session', 'ok');
+    setTask(null);
+    return;
+  }
+
+  if (hasBridge()) {
+    Android.executeCommand(cmd);
+  } else {
+    // browser preview simulation
+    setTask(cmd);
+    addStep('Analysing command', 'done');
+    addStep('Taking screenshot', 'done');
+    addStep('AI deciding action', 'active');
+    setTimeout(() => { updateLastStep('done'); addStep('Executing tap', 'active'); }, 1000);
+    setTimeout(() => { updateLastStep('done'); addStep('Verifying result', 'active'); }, 2000);
+    setTimeout(() => { updateLastStep('done'); log('Task complete (demo mode)', 'ok'); setTask(null); }, 3000);
+  }
+}
+
+function sendFromInput() {
+  const inp = document.getElementById('cmd');
+  const v = inp.value.trim();
+  if (!v) return;
+  inp.value = '';
+  sendCmd(v);
+}
+
+function quickCmd(cmd) {
+  document.getElementById('cmd').value = cmd;
+  sendFromInput();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HISTORY
+// ─────────────────────────────────────────────────────────────────────────────
+function addToHistory(cmd) {
+  S.history.unshift({ cmd, ts: new Date().toLocaleTimeString() });
+  if (S.history.length > HISTORY_MAX) S.history.pop();
+  storeSave('history', S.history);
+}
+function openHistory() {
+  const list = document.getElementById('history-list');
+  if (!S.history.length) {
+    list.innerHTML = '<div class="no-hist">Abhi koi history nahi hai</div>';
+  } else {
+    list.innerHTML = S.history.map((h,i) =>
+      `<div class="hist-item" onclick="reuseHistory(${i})">
+         <div class="hist-cmd">${esc(h.cmd)}</div>
+         <div class="hist-meta">${h.ts}</div>
+       </div>`
+    ).join('');
+  }
+  document.getElementById('history-overlay').classList.remove('hidden');
+}
+function closeHistory() { document.getElementById('history-overlay').classList.add('hidden'); }
+function reuseHistory(i) {
+  closeHistory();
+  document.getElementById('cmd').value = S.history[i].cmd;
+  document.getElementById('cmd').focus();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+function openSettings() {
+  const s = S.settings;
+  document.getElementById('s-apikey').value = s.apiKey;
+  document.getElementById('s-model').value  = s.model;
+  document.getElementById('s-adbip').value  = s.adbIp;
+  ['confirm','steps','vibrate'].forEach(k => {
+    const el = document.getElementById('tog-'+k);
+    el.className = 'toggle' + (s[k] ? ' on':'');
+  });
+  document.getElementById('settings-overlay').classList.remove('hidden');
+}
+function closeSettings() { document.getElementById('settings-overlay').classList.add('hidden'); }
+
+function toggleSetting(key) {
+  S.settings[key] = !S.settings[key];
+  const el = document.getElementById('tog-'+key);
+  el.className = 'toggle' + (S.settings[key] ? ' on':'');
+}
+
+function saveSettings() {
+  S.settings.apiKey = document.getElementById('s-apikey').value.trim();
+  S.settings.model  = document.getElementById('s-model').value;
+  S.settings.adbIp  = document.getElementById('s-adbip').value.trim();
+  storeSave('settings', S.settings);
+  if (hasBridge()) Android.applySettings(JSON.stringify(S.settings));
+  closeSettings();
+  toast('Settings saved ✔');
+  log('Settings updated', 'ok');
+}
+
+function saveAdbIp() {
+  const ip = document.getElementById('s-adbip').value.trim();
+  if (!ip) { toast('IP:port daalo pehle'); return; }
+  S.settings.adbIp = ip;
+  if (hasBridge()) Android.connectBridge(ip);
+  else { log('Bridge connect: '+ip, 'action'); toast('Connecting...'); }
+}
+
+function clearAllData() {
+  if (!confirm('Sab data delete karna chahte ho?')) return;
+  S.history = [];
+  storeSave('history', []);
+  storeSave('settings', {});
+  closeSettings();
+  toast('Data cleared');
+  log('All data cleared', 'warn');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PERMISSIONS
+// ─────────────────────────────────────────────────────────────────────────────
+function openAccessibility() {
+  log('Opening Accessibility settings...', 'action');
+  if (hasBridge()) Android.openAccessibility();
+  else toast('Android bridge sirf APK mein available hai');
+}
+function bindShizuku() {
+  log('Binding Shizuku...', 'action');
+  if (hasBridge()) Android.bindShizuku();
+  else toast('Shizuku sirf device pe available hai');
+}
+function connectAdb() {
+  log('Connecting ADB bridge...', 'action');
+  if (hasBridge()) Android.connectAdb();
+  else toast('ADB bridge sirf device pe available hai');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SETUP OVERLAY
+// ─────────────────────────────────────────────────────────────────────────────
+function startSetup() {
+  document.getElementById('setup-overlay').classList.add('hidden');
+  log('Setup started — opening Accessibility settings', 'info');
+  openAccessibility();
+}
+function skipSetup() {
+  document.getElementById('setup-overlay').classList.add('hidden');
+  log('RX CONTROL ZONE ready — waiting for connections...', 'ok');
+  if (hasBridge()) Android.checkStatus();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 2200);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANDROID → JS BRIDGE  (Android calls window.rxUpdate with JSON string)
+// ─────────────────────────────────────────────────────────────────────────────
+window.rxUpdate = function(jsonStr) {
+  try {
+    const d = JSON.parse(jsonStr);
+    if (d.status)          updateStatus(d.status);
+    if (d.log)             log(d.log, d.logType || 'info');
+    if (d.task !== undefined) setTask(d.task || null);
+    if (d.step)            addStep(d.step, d.stepStatus || 'active');
+    if (d.stepDone !== undefined) updateLastStep(d.stepDone ? 'done' : 'error');
+    if (d.toast)           toast(d.toast);
+    if (d.confirm) {
+      showConfirm(d.confirm).then(ok => {
+        if (hasBridge()) Android.confirmResult(ok ? 'yes' : 'no');
+      });
+    }
+  } catch(e) { log('Bridge parse error: '+e, 'error'); }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Load saved settings
+  const saved = storeLoad('settings', {});
+  Object.assign(S.settings, saved);
+  S.history = storeLoad('history', []);
+
+  log('RX CONTROL ZONE initialized ⚡', 'ok');
+  log('Engine: Gemini 2.5 Flash', 'info');
+
+  if (hasBridge()) {
+    document.getElementById('setup-overlay').classList.add('hidden');
+    Android.checkStatus();
+    log('Android bridge detected', 'ok');
+  }
+
+  // Enter key on settings inputs
+  document.querySelectorAll('.sett-input').forEach(el => {
+    el.addEventListener('keydown', e => { if(e.key==='Enter') saveSettings(); });
+  });
+});
+</script>
+</body>
+</html>

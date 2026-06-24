@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RX Control Zone</string>
+    <string name="accessibility_service_label">RX Control Zone AI</string>
+    <string name="accessibility_service_desc">AI-powered phone control — allows RX Control Zone to find and tap UI elements automatically without fixed coordinates.</string>
+</resources>
