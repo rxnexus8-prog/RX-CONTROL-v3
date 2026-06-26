@@ -147,19 +147,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Run shell command via Shizuku (returns output string)
-    // Note: Shizuku.newProcess is a hidden/private method in the public API jar,
-    // so it must be invoked via reflection at runtime.
     fun runShizukuCommand(cmd: String): String {
         return try {
             if (!isShizukuAvailable()) return "Shizuku not available"
-            val method = Shizuku::class.java.getDeclaredMethod(
-                "newProcess",
-                Array<String>::class.java,
-                Array<String>::class.java,
-                String::class.java
-            )
-            method.isAccessible = true
-            val process = method.invoke(null, arrayOf("sh", "-c", cmd), null, null) as java.lang.Process
+            val process = Shizuku.newProcess(arrayOf("sh", "-c", cmd), null, null)
             val output = process.inputStream.bufferedReader().readText()
             process.waitFor()
             output.trim()

@@ -7,9 +7,9 @@ import java.io.*
 import java.net.Socket
 
 /**
- * TCP client that talks to the Python rx_control_zone.py script.
- * Python side should be running a simple socket server on port 7070.
- * Protocol: newline-delimited JSON.
+ * V2 Bridge — handles two modes:
+ * 1. cmd mode  : {"cmd":"open youtube"} → run on Python side (legacy)
+ * 2. action mode: {"action":"click_text","text":"Search"} → execute via Accessibility
  */
 class BridgeClient(private val activity: MainActivity) {
 
@@ -22,6 +22,7 @@ class BridgeClient(private val activity: MainActivity) {
     private var writer: PrintWriter? = null
     private var reader: BufferedReader? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val executor = ActionExecutor(activity)
 
     fun connect(host: String, port: Int) {
         scope.launch {
@@ -50,9 +51,6 @@ class BridgeClient(private val activity: MainActivity) {
         connected = false
     }
 
-    /**
-     * Send a command string to Python. Returns the response line.
-     */
     fun sendCommand(cmd: String): String {
         return try {
             if (!connected) return "Bridge not connected"
@@ -68,15 +66,36 @@ class BridgeClient(private val activity: MainActivity) {
     }
 
     /**
-     * Listen for push messages from Python (status updates, logs, confirms).
+     * Listen loop — handles both push messages from Python AND
+     * action requests that APK should execute via Accessibility.
      */
     private suspend fun listenLoop() = withContext(Dispatchers.IO) {
         try {
             while (isActive && connected) {
                 val line = reader?.readLine() ?: break
+                if (line.isBlank()) continue
                 try {
                     val json = JSONObject(line)
+
+                    // ── Action request from Python → execute via Accessibility ──
+                    if (json.has("action")) {
+                        val requestId = json.optString("request_id", "")
+                        scope.launch(Dispatchers.Main) {
+                            val result = executor.execute(json)
+                            if (requestId.isNotEmpty()) result.put("request_id", requestId)
+                            // Send result back to Python
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    writer?.println(result.toString())
+                                } catch (_: Exception) {}
+                            }
+                        }
+                        continue
+                    }
+
+                    // ── Push update from Python → update WebView ──
                     withContext(Dispatchers.Main) { activity.pushToWeb(json) }
+
                 } catch (_: Exception) {}
             }
         } catch (_: Exception) {}
