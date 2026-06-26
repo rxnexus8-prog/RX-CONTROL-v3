@@ -150,7 +150,7 @@ class MainActivity : AppCompatActivity() {
     fun runShizukuCommand(cmd: String): String {
         return try {
             if (!isShizukuAvailable()) return "Shizuku not available"
-            val process = Shizuku.newProcess(arrayOf("sh", "-c", cmd), null, null)
+val process = Shizuku.exec(arrayOf("sh", "-c", cmd))
             val output = process.inputStream.bufferedReader().readText()
             process.waitFor()
             output.trim()
